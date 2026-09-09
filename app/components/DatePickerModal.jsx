@@ -178,9 +178,13 @@ export default function DatePickerModal({
   onApply,
   initialStartDate = null,
   initialEndDate = null,
+  initialShipName = '',
+  initialCompanyName = '',
 }) {
   const [startDate, setStartDate] = useState(initialStartDate);
   const [endDate, setEndDate] = useState(initialEndDate);
+  const [shipName, setShipName] = useState(initialShipName);
+  const [companyName, setCompanyName] = useState(initialCompanyName);
 
   const today = new Date();
 
@@ -196,6 +200,8 @@ export default function DatePickerModal({
     if (isOpen) {
       setStartDate(initialStartDate);
       setEndDate(initialEndDate);
+      setShipName(initialShipName);
+      setCompanyName(initialCompanyName);
 
       const baseDate = initialStartDate || new Date();
 
@@ -207,7 +213,13 @@ export default function DatePickerModal({
         new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 1)
       );
     }
-  }, [isOpen, initialStartDate, initialEndDate]);
+  }, [
+    isOpen,
+    initialStartDate,
+    initialEndDate,
+    initialShipName,
+    initialCompanyName,
+  ]);
 
   if (!isOpen) return null;
 
@@ -245,7 +257,7 @@ export default function DatePickerModal({
     }
 
     if (onApply) {
-      onApply(startDate, endDate);
+      onApply(startDate, endDate, shipName, companyName);
     }
 
     onClose();
@@ -280,6 +292,34 @@ export default function DatePickerModal({
             >
               ×
             </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] uppercase font-bold text-gray-400">
+                Nama Kapal (Opsional)
+              </span>
+              <input
+                type="text"
+                value={shipName}
+                onChange={(event) => setShipName(event.target.value)}
+                placeholder="Masukkan nama kapal"
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 outline-none focus:border-[#0d1b3e]"
+              />
+            </label>
+
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] uppercase font-bold text-gray-400">
+                Nama Perusahaan (Opsional)
+              </span>
+              <input
+                type="text"
+                value={companyName}
+                onChange={(event) => setCompanyName(event.target.value)}
+                placeholder="Masukkan nama perusahaan"
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 outline-none focus:border-[#0d1b3e]"
+              />
+            </label>
           </div>
         </div>
 

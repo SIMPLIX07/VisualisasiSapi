@@ -111,6 +111,95 @@ function hasValue(value) {
   return String(value ?? '').trim() !== '';
 }
 
+function normalizeFilterValue(value) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function parseQuantity(value) {
+  return parseInt(String(value ?? '0').replace(/[.,]/g, ''), 10) || 0;
+}
+
+function groupChartData(rows, columnName) {
+  const totals = new Map();
+
+  rows.forEach((row) => {
+    const name = String(getCellValue(row, columnName) || 'Tidak diketahui').trim();
+    const quantity = parseQuantity(getCellValue(row, 'Jumlah Sapi'));
+    totals.set(name, (totals.get(name) || 0) + quantity);
+  });
+
+  const sorted = [...totals.entries()]
+    .map(([name, total]) => ({ name, total }))
+    .sort((a, b) => b.total - a.total);
+
+  if (sorted.length <= 10) return sorted;
+
+  const topTen = sorted.slice(0, 10);
+  const otherTotal = sorted
+    .slice(10)
+    .reduce((total, item) => total + item.total, 0);
+
+  return [...topTen, { name: 'Other', total: otherTotal }];
+}
+
+function ChartBars({ items, color }) {
+  if (items.length === 0) {
+    return <p className="py-12 text-center text-xs text-gray-400">Belum ada data grafik.</p>;
+  }
+
+  const maximum = Math.max(...items.map((item) => item.total), 1);
+
+  return (
+    <div className="flex h-64 items-end gap-2 overflow-x-auto px-2 pb-8 pt-4">
+      {items.map((item) => (
+        <div key={item.name} className="flex h-full min-w-[68px] flex-1 flex-col items-center justify-end gap-2">
+          <span className="text-[10px] font-bold text-gray-700">{formatNumberID(item.total)}</span>
+          <div className="flex h-44 w-full items-end justify-center">
+            <div
+              className="w-full max-w-14 rounded-t bg-[#1d4ed8] transition-all duration-300"
+              style={{ height: `${Math.max((item.total / maximum) * 100, 3)}%`, backgroundColor: color }}
+              title={`${item.name}: ${formatNumberID(item.total)}`}
+            />
+          </div>
+          <span className="w-full truncate text-center text-[10px] text-gray-600" title={item.name}>
+            {item.name}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DisinfectionChart({ yes, no }) {
+  const total = yes + no;
+  const yesPercentage = total === 0 ? 0 : (yes / total) * 100;
+
+  return (
+    <div className="flex min-h-64 flex-col items-center justify-center gap-5 sm:flex-row">
+      <div
+        className="relative flex h-40 w-40 shrink-0 items-center justify-center rounded-full"
+        style={{ background: `conic-gradient(#0f766e ${yesPercentage}%, #f59e0b 0)` }}
+        aria-label={`Disinfeksi Ya ${formatNumberID(yes)}, Tidak ${formatNumberID(no)}`}
+      >
+        <div className="flex h-24 w-24 flex-col items-center justify-center rounded-full bg-white">
+          <span className="text-xl font-bold text-[#0d1b3e]">{formatNumberID(total)}</span>
+          <span className="text-[10px] text-gray-500">data</span>
+        </div>
+      </div>
+      <div className="space-y-3 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="h-3 w-3 rounded-full bg-teal-700" />
+          <span className="font-bold text-gray-800">Ya: <strong>{formatNumberID(yes)}</strong> ({yesPercentage.toFixed(1)}%)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="h-3 w-3 rounded-full bg-amber-500" />
+          <span className="font-bold text-gray-800">Tidak: <strong>{formatNumberID(no)}</strong> ({(100 - yesPercentage).toFixed(1)}%)</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const DETAIL_ITEMS_PER_PAGE = 15;
 
 export default function Dashboard({
@@ -124,11 +213,13 @@ export default function Dashboard({
   // Rentang tanggal dari DatePickerModal
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
+  const [shipName, setShipName] = useState('');
+  const [companyName, setCompanyName] = useState('');
   const [detailPage, setDetailPage] = useState(1);
 
   useEffect(() => {
     setDetailPage(1);
-  }, [startDate, endDate]);
+  }, [startDate, endDate, shipName, companyName]);
 
   /*
    * =============================================================
@@ -155,6 +246,25 @@ export default function Dashboard({
       }
     }
 
+    const normalizedShipName = normalizeFilterValue(shipName);
+    const normalizedCompanyName = normalizeFilterValue(companyName);
+
+    if (normalizedShipName || normalizedCompanyName) {
+      rows = rows.filter((row) => {
+        const rowShipName = normalizeFilterValue(
+          getCellValue(row, 'Nama Kapal')
+        );
+        const rowCompanyName = normalizeFilterValue(
+          getCellValue(row, 'Nama Perusahaan')
+        );
+
+        return (
+          (!normalizedShipName || rowShipName.includes(normalizedShipName)) &&
+          (!normalizedCompanyName || rowCompanyName.includes(normalizedCompanyName))
+        );
+      });
+    }
+
     return rows
       .map((row, index) => ({
         row,
@@ -171,7 +281,7 @@ export default function Dashboard({
         return a.timestamp - b.timestamp;
       })
       .map(({ row }) => row);
-  }, [data, startDate, endDate]);
+  }, [data, startDate, endDate, shipName, companyName]);
 
   /*
    * =============================================================
@@ -249,6 +359,26 @@ export default function Dashboard({
     return [
       latestRow?.row['Petugas Pemeriksa Kapal'],
     ].filter(Boolean);
+  }, [filteredData]);
+
+  const [isChartsOpen, setIsChartsOpen] = useState(false);
+
+  const chartData = useMemo(() => {
+    const disinfection = filteredData.reduce((result, row) => {
+      const value = normalizeFilterValue(
+        getCellValue(row, 'Dilakukan Disinfeksi Alat Angkut?')
+      );
+
+      if (value === 'ya' || value === 'yes') result.yes += 1;
+      else result.no += 1;
+      return result;
+    }, { yes: 0, no: 0 });
+
+    return {
+      companies: groupChartData(filteredData, 'Nama Perusahaan'),
+      animals: groupChartData(filteredData, 'Jenis Hewan'),
+      disinfection,
+    };
   }, [filteredData]);
 
   const detailRows = useMemo(() => {
@@ -412,6 +542,43 @@ export default function Dashboard({
           <div className="p-6 space-y-6">
 
             {/* ======================================================= */}
+            {/* GRAFIK */}
+            {/* ======================================================= */}
+            <section className="overflow-hidden rounded-lg border-2 border-gray-200">
+              <button
+                type="button"
+                onClick={() => setIsChartsOpen((isOpen) => !isOpen)}
+                aria-expanded={isChartsOpen}
+                className="flex w-full items-center justify-between bg-gray-100 px-4 py-3 text-left transition hover:bg-gray-200"
+              >
+                <span className="flex items-center gap-2 text-sm font-bold text-gray-800">
+                  <span className="text-lg" aria-hidden="true">📊</span>
+                  Grafik
+                </span>
+                <span className="text-lg text-gray-500" aria-hidden="true">{isChartsOpen ? '−' : '+'}</span>
+              </button>
+
+              {isChartsOpen && (
+                <div className="grid grid-cols-1 gap-5 p-4 xl:grid-cols-2">
+                  <article className="rounded border border-gray-200 bg-white p-3">
+                    <h3 className="text-sm font-bold text-gray-800">Perusahaan &amp; Jumlah Sapi</h3>
+                    <ChartBars items={chartData.companies} color="#1d4ed8" />
+                  </article>
+
+                  <article className="rounded border border-gray-200 bg-white p-3">
+                    <h3 className="text-sm font-bold text-gray-800">Status Disinfeksi</h3>
+                    <DisinfectionChart {...chartData.disinfection} />
+                  </article>
+
+                  <article className="rounded border border-gray-200 bg-white p-3 xl:col-span-2">
+                    <h3 className="text-sm font-bold text-gray-800">Jenis Hewan &amp; Jumlah</h3>
+                    <ChartBars items={chartData.animals} color="#0f766e" />
+                  </article>
+                </div>
+              )}
+            </section>
+
+            {/* ======================================================= */}
             {/* METRIC CARDS */}
             {/* ======================================================= */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -444,6 +611,8 @@ export default function Dashboard({
                       onClick={() => {
                         setStartDate(null);
                         setEndDate(null);
+                        setShipName('');
+                        setCompanyName('');
                       }}
                       className="text-[10px] text-red-400 hover:text-red-600 transition mt-1 underline"
                     >
@@ -869,9 +1038,13 @@ export default function Dashboard({
         onClose={() => setIsModalOpen(false)}
         initialStartDate={startDate}
         initialEndDate={endDate}
-        onApply={(start, end) => {
+        initialShipName={shipName}
+        initialCompanyName={companyName}
+        onApply={(start, end, selectedShipName, selectedCompanyName) => {
           setStartDate(start);
           setEndDate(end);
+          setShipName(selectedShipName);
+          setCompanyName(selectedCompanyName);
         }}
       />
     </>
