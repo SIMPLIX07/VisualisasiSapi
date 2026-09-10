@@ -215,11 +215,12 @@ export default function Dashboard({
   const [endDate, setEndDate] = useState(null);
   const [shipName, setShipName] = useState('');
   const [companyName, setCompanyName] = useState('');
+  const [detailNopolFilter, setDetailNopolFilter] = useState('');
   const [detailPage, setDetailPage] = useState(1);
 
   useEffect(() => {
     setDetailPage(1);
-  }, [startDate, endDate, shipName, companyName]);
+  }, [startDate, endDate, shipName, companyName, detailNopolFilter]);
 
   /*
    * =============================================================
@@ -382,13 +383,24 @@ export default function Dashboard({
   }, [filteredData]);
 
   const detailRows = useMemo(() => {
-    return filteredData.filter((row) => Object.entries(row).some(
-      ([key, value]) =>
-        key !== 'tanggalFormatted' &&
-        key !== 'jumlahSapiFormatted' &&
-        hasValue(value)
-    ));
-  }, [filteredData]);
+    const normalizedNopolFilter = normalizeFilterValue(detailNopolFilter);
+
+    return filteredData.filter((row) => {
+      const hasData = Object.entries(row).some(
+        ([key, value]) =>
+          key !== 'tanggalFormatted' &&
+          key !== 'jumlahSapiFormatted' &&
+          hasValue(value)
+      );
+      const nopol = normalizeFilterValue(
+        getCellValue(row, 'Nopol Kendaraan')
+      );
+
+      return hasData && (
+        !normalizedNopolFilter || nopol.includes(normalizedNopolFilter)
+      );
+    });
+  }, [filteredData, detailNopolFilter]);
 
   const detailTotalPages = Math.ceil(
     detailRows.length / DETAIL_ITEMS_PER_PAGE
@@ -817,6 +829,23 @@ export default function Dashboard({
               </div>
 
               <div className="p-4">
+                <div className="mb-4 max-w-sm">
+                  <label
+                    htmlFor="detail-nopol-filter"
+                    className="mb-1 block text-xs font-semibold text-gray-700"
+                  >
+                    Filter Nopol Kendaraan
+                  </label>
+                  <input
+                    id="detail-nopol-filter"
+                    type="search"
+                    value={detailNopolFilter}
+                    onChange={(event) => setDetailNopolFilter(event.target.value)}
+                    placeholder="Ketik nopol kendaraan"
+                    className="w-full rounded border border-gray-300 px-3 py-2 text-xs text-gray-800 outline-none transition focus:border-[#0d1b3e] focus:ring-1 focus:ring-[#0d1b3e]"
+                  />
+                </div>
+
                 <div className="overflow-x-auto border border-gray-200 rounded">
                   <table className="w-full text-xs text-left whitespace-nowrap">
                     <thead className="bg-[#0d1b3e] text-white">
