@@ -420,7 +420,7 @@ export default function Dashboard({
         className="relative h-64 md:h-80 flex flex-col items-center justify-center text-white"
         style={{
           backgroundImage:
-            'linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url("/assets/img/newBackground.jpeg")',
+            'linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url("/assets/img/background2.png")',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }}
