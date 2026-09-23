@@ -505,17 +505,17 @@ export default function Dashboard({
           {/* Dashboard Header Bar */}
           <div className="bg-[#0d1b3e] text-white p-4 flex justify-between items-center">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center overflow-hidden border-2 border-[#0d1b3e]">
+              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center overflow-hidden border-2 border-white/30 shadow-md flex-shrink-0">
                 <Image
-                  src="/assets/img/Logo_Badan_Karantina_Indonesia.png"
+                  src="/assets/img/SIBOSQ-circle.png"
                   alt="SI BOS Q Logo"
-                  width={32}
-                  height={32}
-                  className="object-contain"
+                  width={40}
+                  height={40}
+                  className="object-cover w-full h-full"
                 />
               </div>
 
-              <h2 className="text-xl font-bold">
+              <h2 className="text-xl font-bold tracking-wide">
                 SI BOS Q
               </h2>
             </div>
